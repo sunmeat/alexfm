@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Alex FM</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            background: #0f0f13;
+            color: #eee;
+            text-align: center;
+            padding-top: 60px;
+        }
+        h1 { margin-bottom: 5px; }
+        #trackInfo { opacity: 0.8; margin-bottom: 25px; min-height: 24px; }
+        audio { width: 320px; }
+        #status { margin-top: 15px; font-size: 13px; opacity: 0.5; }
+    </style>
+</head>
+<body>
+<h1>Alex FM</h1>
+<div id="trackInfo">Загрузка...</div>
+<audio id="player" controls></audio>
+<div id="status"></div>
+
+<script>
+    const player = document.getElementById('player');
+    const trackInfo = document.getElementById('trackInfo');
+    const statusEl = document.getElementById('status');
+
+    let currentFile = null;
+    let resyncTimer = null;
+
+    async function fetchNowPlaying() {
+        const res = await fetch('/api/now-playing');
+        return res.json();
+    }
+
+    async function syncToLive(forceRestart = false) {
+        const data = await fetchNowPlaying();
+        const networkDelay = (Date.now() / 1000) - data.serverTime;
+        const targetOffset = data.offset + Math.max(networkDelay, 0);
+
+        trackInfo.textContent = data.artist
+            ? `${data.artist} — ${data.title}`
+            : data.title;
+
+        if (data.file !== currentFile || forceRestart) {
+            currentFile = data.file;
+            player.src = '/tracks/' + encodeURIComponent(data.file);
+            player.currentTime = targetOffset;
+            player.play().catch(() => {
+                statusEl.textContent = 'Нажмите Play, чтобы начать слушать';
+            });
+        } else {
+            // тот же трек — просто проверяем и корректируем рассинхрон
+            const drift = Math.abs(player.currentTime - targetOffset);
+            if (drift > 2) {
+                player.currentTime = targetOffset;
+            }
+        }
+
+        // запланировать пересинхронизацию к моменту смены трека (+небольшой запас)
+        clearTimeout(resyncTimer);
+        const nextCheckIn = Math.min(Math.max(data.nextTrackIn, 1), 30);
+        resyncTimer = setTimeout(() => syncToLive(), nextCheckIn * 1000);
+    }
+
+    // первый запуск
+    syncToLive(true);
+
+    // периодическая лёгкая коррекция дрейфа
+    setInterval(() => syncToLive(), 30000);
+</script>
+</body>
+</html>

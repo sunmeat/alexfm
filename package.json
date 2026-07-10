@@ -1,0 +1,11 @@
+{
+  "name": "alex-fm",
+  "version": "1.0.0",
+  "description": "Онлайн-радио, синхронизированное по времени сервера",
+  "scripts": {
+    "generate-playlist": "node scripts/generate-playlist.js"
+  },
+  "dependencies": {
+    "music-metadata": "^7.14.0"
+  }
+}
