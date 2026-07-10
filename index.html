@@ -1,76 +1,446 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-    <meta charset="UTF-8">
-    <title>Alex FM</title>
-    <style>
-        body {
-            font-family: system-ui, sans-serif;
-            background: #0f0f13;
-            color: #eee;
-            text-align: center;
-            padding-top: 60px;
-        }
-        h1 { margin-bottom: 5px; }
-        #trackInfo { opacity: 0.8; margin-bottom: 25px; min-height: 24px; }
-        audio { width: 320px; }
-        #status { margin-top: 15px; font-size: 13px; opacity: 0.5; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alex FM</title>
+<style>
+  :root {
+    --accent1: #00e5ff;
+    --accent2: #ff00e5;
+    --bg: #0a0a0f;
+    --panel: #14141c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: radial-gradient(circle at 50% 0%, #1a1a26 0%, var(--bg) 60%);
+    color: #eee;
+    text-align: center;
+    margin: 0;
+    min-height: 100vh;
+    padding: 40px 16px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  h1 {
+    margin: 0;
+    font-size: 28px;
+    letter-spacing: 2px;
+    background: linear-gradient(90deg, var(--accent1), var(--accent2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .live-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: #ff4d4d;
+    border: 1px solid #ff4d4d;
+    border-radius: 20px;
+    padding: 3px 10px;
+  }
+  .live-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #ff4d4d;
+    animation: blink 1.4s infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
+
+  #trackInfo {
+    opacity: 0.85;
+    margin: 16px 0 24px;
+    min-height: 22px;
+    font-size: 15px;
+  }
+
+  .viz-wrap {
+    position: relative;
+    max-width: 640px;
+    margin: 0 auto 24px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--panel);
+    border: 1px solid #26263a;
+  }
+  #viz {
+    display: block;
+    width: 100%;
+    height: 220px;
+    cursor: pointer;
+  }
+  .viz-hint {
+    position: absolute;
+    bottom: 8px;
+    right: 12px;
+    font-size: 10px;
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  .controls {
+    max-width: 640px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    background: var(--panel);
+    border: 1px solid #26263a;
+    border-radius: 14px;
+    padding: 16px 24px;
+  }
+  #playBtn {
+    background: linear-gradient(135deg, var(--accent1), var(--accent2));
+    border: none;
+    color: #0a0a0f;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 12px 26px;
+    border-radius: 30px;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+  }
+  #playBtn:active { transform: scale(0.97); }
+
+  .volume-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    opacity: 0.7;
+  }
+  input[type="range"] {
+    accent-color: var(--accent1);
+    width: 110px;
+  }
+
+  #status { margin-top: 14px; font-size: 12px; opacity: 0.5; }
+
+  #lyrics {
+    display: none;
+    max-width: 640px;
+    margin: 24px auto 0;
+    background: var(--panel);
+    border: 1px solid #26263a;
+    border-radius: 14px;
+    padding: 20px;
+    max-height: 260px;
+    overflow-y: auto;
+    line-height: 1.9;
+    font-size: 15px;
+    white-space: pre-wrap;
+  }
+  #lyrics .line {
+    opacity: 0.4;
+    transition: opacity 0.25s, color 0.25s, transform 0.25s;
+  }
+  #lyrics .line.active {
+    opacity: 1;
+    color: var(--accent1);
+    transform: scale(1.04);
+    font-weight: 600;
+  }
+  #lyrics::-webkit-scrollbar { width: 6px; }
+  #lyrics::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+</style>
 </head>
 <body>
-<h1>Alex FM</h1>
-<div id="trackInfo">Загрузка...</div>
-<audio id="player" controls></audio>
-<div id="status"></div>
+
+  <div class="brand">
+    <h1>ALEX FM</h1>
+    <div class="live-badge"><span class="live-dot"></span>LIVE</div>
+  </div>
+  <div id="trackInfo">Завантаження...</div>
+
+  <div class="viz-wrap">
+    <canvas id="viz"></canvas>
+    <div class="viz-hint">клік — змінити візуалізацію</div>
+  </div>
+
+  <div class="controls">
+    <button id="playBtn">▶ Слухати</button>
+    <div class="volume-wrap">
+      🔊 <input type="range" id="volume" min="0" max="1" step="0.01" value="0.8">
+    </div>
+  </div>
+
+  <div id="status"></div>
+  <div id="lyrics"></div>
+
+  <audio id="player" preload="auto" style="display:none"></audio>
 
 <script>
-    const player = document.getElementById('player');
-    const trackInfo = document.getElementById('trackInfo');
-    const statusEl = document.getElementById('status');
+const player = document.getElementById('player');
+const trackInfo = document.getElementById('trackInfo');
+const statusEl = document.getElementById('status');
+const playBtn = document.getElementById('playBtn');
+const volumeSlider = document.getElementById('volume');
+const lyricsBox = document.getElementById('lyrics');
+const canvas = document.getElementById('viz');
+const ctx = canvas.getContext('2d');
 
-    let currentFile = null;
-    let resyncTimer = null;
+player.volume = parseFloat(volumeSlider.value);
+volumeSlider.addEventListener('input', () => { player.volume = parseFloat(volumeSlider.value); });
 
-    async function fetchNowPlaying() {
-        const res = await fetch('/api/now-playing');
-        return res.json();
+let currentFile = null;
+let resyncTimer = null;
+let isPlaying = false;
+let lyricsData = null; // { type: 'synced', lines: [...] } | { type: 'plain', text } | null
+
+/* ===================== РАДИО-СИНХРОНИЗАЦИЯ (без перемотки) ===================== */
+
+async function fetchNowPlaying() {
+  const res = await fetch('/api/now-playing');
+  return res.json();
+}
+
+async function syncToLive(forceRestart = false) {
+  const data = await fetchNowPlaying();
+  const networkDelay = (Date.now() / 1000) - data.serverTime;
+  const targetOffset = data.offset + Math.max(networkDelay, 0);
+
+  trackInfo.textContent = data.artist ? `${data.artist} — ${data.title}` : data.title;
+
+  if (data.file !== currentFile || forceRestart) {
+    currentFile = data.file;
+    player.src = '/tracks/' + encodeURIComponent(data.file);
+    player.currentTime = targetOffset;
+    if (isPlaying) player.play().catch(() => {});
+    loadLyrics(data.artist, data.title);
+  } else {
+    const drift = Math.abs(player.currentTime - targetOffset);
+    if (drift > 2) player.currentTime = targetOffset;
+  }
+
+  clearTimeout(resyncTimer);
+  const nextCheckIn = Math.min(Math.max(data.nextTrackIn, 1), 30);
+  resyncTimer = setTimeout(() => syncToLive(), nextCheckIn * 1000);
+}
+
+// первоначальная загрузка данных (без автовоспроизведения — браузеры это всё равно блокируют)
+syncToLive(true);
+setInterval(() => syncToLive(), 30000);
+
+// запрещаем перемотку: если что-то всё же меняет currentTime мимо нашей логики, откатываем
+let lastKnownTime = 0;
+player.addEventListener('timeupdate', () => { lastKnownTime = player.currentTime; });
+player.addEventListener('seeking', () => {
+  if (Math.abs(player.currentTime - lastKnownTime) > 1.5) {
+    player.currentTime = lastKnownTime;
+  }
+});
+
+/* ===================== PLAY / PAUSE ===================== */
+
+playBtn.addEventListener('click', async () => {
+  if (!audioCtx) setupAudioGraph();
+  if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+  if (!isPlaying) {
+    isPlaying = true;
+    statusEl.textContent = '';
+    await syncToLive(true); // при старте всегда прыгаем на живую позицию
+    player.play();
+    playBtn.textContent = '⏸ Пауза';
+  } else {
+    isPlaying = false;
+    player.pause();
+    playBtn.textContent = '▶ Слухати';
+  }
+});
+
+/* ===================== ВИЗУАЛИЗАТОР (в духе Winamp AVS) ===================== */
+
+let audioCtx, analyser, source, freqData, timeData;
+let vizMode = 0; // 0 = бары, 1 = круговая, 2 = осциллограф
+
+function setupAudioGraph() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  source = audioCtx.createMediaElementSource(player);
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 512;
+  source.connect(analyser);
+  analyser.connect(audioCtx.destination);
+  freqData = new Uint8Array(analyser.frequencyBinCount);
+  timeData = new Uint8Array(analyser.fftSize);
+  resizeCanvas();
+  requestAnimationFrame(drawVisualizer);
+}
+
+function resizeCanvas() {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+}
+window.addEventListener('resize', resizeCanvas);
+
+canvas.addEventListener('click', () => { vizMode = (vizMode + 1) % 3; });
+
+function drawVisualizer() {
+  requestAnimationFrame(drawVisualizer);
+  if (!analyser) return;
+
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  if (vizMode === 0) drawBars(w, h);
+  else if (vizMode === 1) drawCircular(w, h);
+  else drawWave(w, h);
+}
+
+function drawBars(w, h) {
+  analyser.getByteFrequencyData(freqData);
+  const barCount = 48;
+  const step = Math.floor(freqData.length / barCount);
+  const barWidth = w / barCount;
+  const midY = h / 2;
+
+  for (let i = 0; i < barCount; i++) {
+    const v = freqData[i * step] / 255;
+    const barH = v * (h * 0.45);
+    const hue = (i / barCount) * 280 + (Date.now() / 30 % 360);
+    ctx.fillStyle = `hsl(${hue}, 100%, 60%)`;
+    ctx.shadowColor = `hsl(${hue}, 100%, 60%)`;
+    ctx.shadowBlur = 8;
+    const x = i * barWidth + 2;
+    ctx.fillRect(x, midY - barH, barWidth - 4, barH);
+    ctx.fillRect(x, midY, barWidth - 4, barH * 0.6);
+  }
+  ctx.shadowBlur = 0;
+}
+
+function drawCircular(w, h) {
+  analyser.getByteFrequencyData(freqData);
+  const cx = w / 2, cy = h / 2;
+  const baseRadius = Math.min(w, h) * 0.18;
+  const bars = 64;
+  const step = Math.floor(freqData.length / bars);
+
+  for (let i = 0; i < bars; i++) {
+    const v = freqData[i * step] / 255;
+    const angle = (i / bars) * Math.PI * 2;
+    const len = baseRadius * 0.4 + v * baseRadius * 1.4;
+    const x1 = cx + Math.cos(angle) * baseRadius;
+    const y1 = cy + Math.sin(angle) * baseRadius;
+    const x2 = cx + Math.cos(angle) * (baseRadius + len);
+    const y2 = cy + Math.sin(angle) * (baseRadius + len);
+    const hue = (i / bars) * 360 + (Date.now() / 20 % 360);
+
+    ctx.strokeStyle = `hsl(${hue}, 100%, 60%)`;
+    ctx.shadowColor = `hsl(${hue}, 100%, 60%)`;
+    ctx.shadowBlur = 10;
+    ctx.lineWidth = Math.max(2, w / 300);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+  ctx.shadowBlur = 0;
+}
+
+function drawWave(w, h) {
+  analyser.getByteTimeDomainData(timeData);
+  const midY = h / 2;
+  ctx.lineWidth = Math.max(2, w / 400);
+  ctx.strokeStyle = '#00e5ff';
+  ctx.shadowColor = '#00e5ff';
+  ctx.shadowBlur = 12;
+  ctx.beginPath();
+  const slice = w / timeData.length;
+  let x = 0;
+  for (let i = 0; i < timeData.length; i++) {
+    const v = timeData[i] / 128 - 1;
+    const y = midY + v * (h * 0.4);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    x += slice;
+  }
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+}
+
+/* ===================== ТЕКСТЫ ПЕСЕН / КАРАОКЕ ===================== */
+
+function parseLRC(lrc) {
+  const timeRe = /\[(\d{2}):(\d{2})(?:[.:](\d{2,3}))?\]/g;
+  const result = [];
+  for (const rawLine of lrc.split('\n')) {
+    const matches = [...rawLine.matchAll(timeRe)];
+    if (!matches.length) continue;
+    const text = rawLine.replace(timeRe, '').trim();
+    if (!text) continue;
+    for (const m of matches) {
+      const min = parseInt(m[1], 10);
+      const sec = parseInt(m[2], 10);
+      const ms = m[3] ? parseInt(m[3].padEnd(3, '0'), 10) : 0;
+      result.push({ time: min * 60 + sec + ms / 1000, text });
     }
+  }
+  return result.sort((a, b) => a.time - b.time);
+}
 
-    async function syncToLive(forceRestart = false) {
-        const data = await fetchNowPlaying();
-        const networkDelay = (Date.now() / 1000) - data.serverTime;
-        const targetOffset = data.offset + Math.max(networkDelay, 0);
+async function loadLyrics(artist, title) {
+  lyricsData = null;
+  lyricsBox.style.display = 'none';
+  lyricsBox.innerHTML = '';
+  if (!title) return;
 
-        trackInfo.textContent = data.artist
-            ? `${data.artist} — ${data.title}`
-            : data.title;
+  try {
+    const url = `/api/lyrics?artist=${encodeURIComponent(artist || '')}&title=${encodeURIComponent(title)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.found) return;
 
-        if (data.file !== currentFile || forceRestart) {
-            currentFile = data.file;
-            player.src = '/tracks/' + encodeURIComponent(data.file);
-            player.currentTime = targetOffset;
-            player.play().catch(() => {
-                statusEl.textContent = 'Нажмите Play, чтобы начать слушать';
-            });
-        } else {
-            // тот же трек — просто проверяем и корректируем рассинхрон
-            const drift = Math.abs(player.currentTime - targetOffset);
-            if (drift > 2) {
-                player.currentTime = targetOffset;
-            }
-        }
-
-        // запланировать пересинхронизацию к моменту смены трека (+небольшой запас)
-        clearTimeout(resyncTimer);
-        const nextCheckIn = Math.min(Math.max(data.nextTrackIn, 1), 30);
-        resyncTimer = setTimeout(() => syncToLive(), nextCheckIn * 1000);
+    if (data.synced) {
+      const lines = parseLRC(data.synced);
+      if (!lines.length) return;
+      lyricsData = { type: 'synced', lines };
+      lyricsBox.innerHTML = lines.map(l => `<div class="line">${escapeHtml(l.text)}</div>`).join('');
+      lyricsBox.style.display = 'block';
+    } else if (data.plain) {
+      lyricsData = { type: 'plain', text: data.plain };
+      lyricsBox.textContent = data.plain;
+      lyricsBox.style.display = 'block';
     }
+  } catch (e) {
+    // текста нет — просто ничего не показываем
+  }
+}
 
-    // первый запуск
-    syncToLive(true);
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
 
-    // периодическая лёгкая коррекция дрейфа
-    setInterval(() => syncToLive(), 30000);
+player.addEventListener('timeupdate', () => {
+  if (!lyricsData || lyricsData.type !== 'synced') return;
+  const t = player.currentTime;
+  const lines = lyricsData.lines;
+  let idx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].time <= t) idx = i; else break;
+  }
+  const els = lyricsBox.children;
+  for (let i = 0; i < els.length; i++) {
+    els[i].classList.toggle('active', i === idx);
+  }
+  if (idx >= 0 && els[idx]) {
+    els[idx].scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+});
 </script>
 </body>
 </html>
