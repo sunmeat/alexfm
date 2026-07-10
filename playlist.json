@@ -1,5 +1,71 @@
 [
   {
+    "file": "-81152065_456305961_0e269b0b-99d.mp3",
+    "title": "-81152065_456305961_0e269b0b-99d",
+    "artist": "",
+    "duration": 179.09551020408162
+  },
+  {
+    "file": "06. Miriana Conte - Serving (Malta).mp3",
+    "title": "Serving",
+    "artist": "Miriana Conte",
+    "duration": 181.57714285714286
+  },
+  {
+    "file": "06. Red Sebastian - Strobe Lights (Belgium).mp3",
+    "title": "Strobe Lights",
+    "artist": "Red Sebastian",
+    "duration": 177.44979591836736
+  },
+  {
+    "file": "11. Armin van Buuren & Giuseppe Ottaviani - Magico.mp3",
+    "title": "Magico",
+    "artist": "Armin van Buuren & Giuseppe Ottaviani",
+    "duration": 203.33714285714285
+  },
+  {
+    "file": "12. Erika Vikman - ICH KOMME (Finland).mp3",
+    "title": "ICH KOMME",
+    "artist": "Erika Vikman",
+    "duration": 182.28244897959183
+  },
+  {
+    "file": "15_Alex_M_O_R_P_H_feat_Song_And_The_Moon_Don't_Talk_Away_The_Magic.mp3",
+    "title": "Don't Talk Away The Magic (Acoustic Mix)",
+    "artist": "Alex M.O.R.P.H. feat. Song And The Moon",
+    "duration": 218.46204081632652
+  },
+  {
+    "file": "18. EMMY - Laika Party (Ireland).mp3",
+    "title": "Laika Party",
+    "artist": "EMMY",
+    "duration": 180.24489795918367
+  },
+  {
+    "file": "2-07. Yahel & Eyal Barkan - Voyage.mp3",
+    "title": "Voyage",
+    "artist": "Yahel & Eyal Barkan",
+    "duration": 316.734693877551
+  },
+  {
+    "file": "Françoise_Hardy-Jeanne-world76.spcs.bio.mp3",
+    "title": "Jeanne",
+    "artist": "Françoise Hardy",
+    "duration": 264.9077551020408
+  },
+  {
+    "file": "akylas-ferto-evrovidenie-2026-grecija.mp3",
+    "title": "Ferto (Евровидение 2026 Греция)",
+    "artist": "Akylas",
+    "duration": 179.2
+  },
+  {
+    "file": "antigoni-jalla-evrovidenie-2026-kipr.mp3",
+    "title": "Jalla (Евровидение 2026 Кипр)",
+    "artist": "Antigoni",
+    "duration": 180.03591836734694
+  },
+  {
     "file": "bittersweet.mp3",
     "title": "Bittersweet And Blue",
     "artist": "Above & Beyond",
@@ -54,6 +120,12 @@
     "duration": 314.4
   },
   {
+    "file": "joost-klein-europapa-evrovidenie-2024-niderlandy.mp3",
+    "title": "Europapa (Евровидение 2024 Нидерланды)",
+    "artist": "Joost Klein",
+    "duration": 160.26122448979592
+  },
+  {
     "file": "lighthouse.mp3",
     "title": "Sink the Lighthouse",
     "artist": "Above & Beyond",
@@ -76,6 +148,24 @@
     "title": "Take  A Moment",
     "artist": "Armin van Buuren",
     "duration": 302.76
+  },
+  {
+    "file": "natalia-barbu-in-the-middle-evrovidenie-2024-moldova.mp3",
+    "title": "In The Middle (Евровидение 2024 Молдова)",
+    "artist": "Natalia Barbu",
+    "duration": 178.8865306122449
+  },
+  {
+    "file": "nebulossa-zorra.mp3",
+    "title": "Zorra",
+    "artist": "Nebulossa",
+    "duration": 183.61469387755102
+  },
+  {
+    "file": "olly-alexander-dizzy-evrovidenie-2024-velikobritanija.mp3",
+    "title": "Dizzy (Евровидение 2024 Великобритания)",
+    "artist": "Olly Alexander",
+    "duration": 172.93061224489796
   },
   {
     "file": "secret.mp3",
@@ -136,5 +226,17 @@
     "title": "Wall of Sound (Airbase pres. Parc Mix)",
     "artist": "Armin van Buuren",
     "duration": 489.432
+  },
+  {
+    "file": "windows95man-no-rules-evrovidenie-2024-finljandija.mp3",
+    "title": "No Rules! (Евровидение 2024 Финляндия)",
+    "artist": "Windows95man",
+    "duration": 175.934693877551
+  },
+  {
+    "file": "Там, только там (Mr.pinky & Mafu Remix).mp3",
+    "title": "Там, только там (Mr.pinky & Mafu Remix)",
+    "artist": "",
+    "duration": 223.66040816326532
   }
 ]
