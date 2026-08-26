@@ -19,7 +19,6 @@
     font-family: system-ui, -apple-system, sans-serif;
     overflow-x: hidden;
   }
-
   #viz {
     position: fixed;
     inset: 0;
@@ -28,7 +27,6 @@
     z-index: 0;
     display: block;
   }
-
   .content {
     position: relative;
     z-index: 1;
@@ -39,10 +37,9 @@
     justify-content: center;
     padding: 24px 16px;
     text-align: center;
-    pointer-events: none; /* клики проваливаются на страницу, кроме явно интерактивных элементов ниже */
+    pointer-events: none;
   }
   .content > * { pointer-events: auto; }
-
   .brand {
     display: flex;
     align-items: center;
@@ -79,7 +76,6 @@
     animation: blink 1.4s infinite;
   }
   @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
-
   #trackInfo {
     opacity: 0.9;
     margin: 16px 0 22px;
@@ -87,7 +83,6 @@
     font-size: 15px;
     text-shadow: 0 0 12px rgba(0,0,0,0.8);
   }
-
   .controls {
     display: flex;
     align-items: center;
@@ -111,7 +106,6 @@
     letter-spacing: 0.5px;
   }
   #playBtn:active { transform: scale(0.97); }
-
   .volume-wrap {
     display: flex;
     align-items: center;
@@ -123,9 +117,7 @@
     accent-color: var(--accent1);
     width: 110px;
   }
-
   #status { margin-top: 12px; font-size: 12px; opacity: 0.6; text-shadow: 0 0 10px rgba(0,0,0,0.8); }
-
   #lyrics {
     display: none;
     width: min(640px, 90vw);
@@ -153,7 +145,6 @@
   }
   #lyrics::-webkit-scrollbar { width: 6px; }
   #lyrics::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
-
   .hint {
     position: fixed;
     bottom: 14px;
@@ -168,31 +159,24 @@
 </style>
 </head>
 <body>
-
 <canvas id="viz"></canvas>
-
 <div class="content">
   <div class="brand">
     <h1>ALEX FM</h1>
     <div class="live-badge"><span class="live-dot"></span>LIVE</div>
   </div>
   <div id="trackInfo">Загрузка...</div>
-
   <div class="controls">
     <button id="playBtn">▶ Слушать</button>
     <div class="volume-wrap">
       🔊 <input type="range" id="volume" min="0" max="1" step="0.01" value="0.8">
     </div>
   </div>
-
   <div id="status"></div>
   <div id="lyrics"></div>
 </div>
-
 <div class="hint" id="hint">клик в любом месте страницы — сменить визуализацию</div>
-
 <audio id="player" preload="auto" style="display:none"></audio>
-
 <script>
 const player = document.getElementById('player');
 const trackInfo = document.getElementById('trackInfo');
@@ -203,29 +187,21 @@ const lyricsBox = document.getElementById('lyrics');
 const canvas = document.getElementById('viz');
 const ctx = canvas.getContext('2d');
 const hintEl = document.getElementById('hint');
-
 player.volume = parseFloat(volumeSlider.value);
 volumeSlider.addEventListener('input', () => { player.volume = parseFloat(volumeSlider.value); });
-
 let currentFile = null;
 let resyncTimer = null;
 let isPlaying = false;
 let lyricsData = null;
-
-/* ===================== РАДИО-СИНХРОНИЗАЦИЯ (без перемотки) ===================== */
-
 async function fetchNowPlaying() {
   const res = await fetch('/api/now-playing');
   return res.json();
 }
-
 async function syncToLive(forceRestart = false) {
   const data = await fetchNowPlaying();
   const networkDelay = (Date.now() / 1000) - data.serverTime;
   const targetOffset = data.offset + Math.max(networkDelay, 0);
-
   trackInfo.textContent = data.artist ? `${data.artist} — ${data.title}` : data.title;
-
   if (data.file !== currentFile || forceRestart) {
     currentFile = data.file;
     player.src = '/tracks/' + encodeURIComponent(data.file);
@@ -236,15 +212,12 @@ async function syncToLive(forceRestart = false) {
     const drift = Math.abs(player.currentTime - targetOffset);
     if (drift > 2) player.currentTime = targetOffset;
   }
-
   clearTimeout(resyncTimer);
   const nextCheckIn = Math.min(Math.max(data.nextTrackIn, 1), 30);
   resyncTimer = setTimeout(() => syncToLive(), nextCheckIn * 1000);
 }
-
 syncToLive(true);
 setInterval(() => syncToLive(), 30000);
-
 let lastKnownTime = 0;
 player.addEventListener('timeupdate', () => { lastKnownTime = player.currentTime; });
 player.addEventListener('seeking', () => {
@@ -252,14 +225,10 @@ player.addEventListener('seeking', () => {
     player.currentTime = lastKnownTime;
   }
 });
-
-/* ===================== PLAY / PAUSE ===================== */
-
 playBtn.addEventListener('click', async (e) => {
   e.stopPropagation();
   if (!audioCtx) setupAudioGraph();
   if (audioCtx.state === 'suspended') await audioCtx.resume();
-
   if (!isPlaying) {
     isPlaying = true;
     statusEl.textContent = '';
@@ -273,13 +242,12 @@ playBtn.addEventListener('click', async (e) => {
   }
 });
 volumeSlider.addEventListener('click', (e) => e.stopPropagation());
-
-/* ===================== ВИЗУАЛИЗАТОР: 6 режимов ===================== */
-
 let audioCtx, analyser, source, freqData, timeData;
 let vizMode = 0;
-const modeNames = ['Бары', 'Круговая', 'Осциллограф', 'Частицы', 'Тоннель', 'Калейдоскоп'];
-
+const modeNames = [
+  'Бары', 'Круговая', 'Осциллограф', 'Частицы', 'Тоннель', 'Калейдоскоп',
+  'Спираль', 'Сетка', 'Молнии', 'Плазма', 'Звёзды', 'Вихрь'
+];
 function setupAudioGraph() {
   if (audioCtx) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -293,7 +261,6 @@ function setupAudioGraph() {
   resizeCanvas();
   requestAnimationFrame(drawVisualizer);
 }
-
 function resizeCanvas() {
   const dpr = window.devicePixelRatio || 1;
   canvas.width = window.innerWidth * dpr;
@@ -301,7 +268,6 @@ function resizeCanvas() {
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
-
 document.addEventListener('click', (e) => {
   if (e.target.closest('.controls')) return;
   vizMode = (vizMode + 1) % modeNames.length;
@@ -310,38 +276,36 @@ document.addEventListener('click', (e) => {
   clearTimeout(hintEl._t);
   hintEl._t = setTimeout(() => { hintEl.style.opacity = '0.45'; hintEl.textContent = 'клик в любом месте страницы — сменить визуализацию'; }, 1500);
 });
-
 function average(arr, start, end) {
   let sum = 0;
   for (let i = start; i < end; i++) sum += arr[i];
   return sum / (end - start);
 }
-
 function drawVisualizer() {
   requestAnimationFrame(drawVisualizer);
   const w = canvas.width, h = canvas.height;
-
-  // лёгкий фейд вместо полной очистки — даёт красивые следы
   ctx.fillStyle = 'rgba(5,5,10,0.22)';
   ctx.fillRect(0, 0, w, h);
-
   if (!analyser) return;
-
   if (vizMode === 0) drawBars(w, h);
   else if (vizMode === 1) drawCircular(w, h);
   else if (vizMode === 2) drawWave(w, h);
   else if (vizMode === 3) drawParticles(w, h);
   else if (vizMode === 4) drawTunnel(w, h);
-  else drawKaleido(w, h);
+  else if (vizMode === 5) drawKaleido(w, h);
+  else if (vizMode === 6) drawSpiral(w, h);
+  else if (vizMode === 7) drawGrid(w, h);
+  else if (vizMode === 8) drawLightning(w, h);
+  else if (vizMode === 9) drawPlasma(w, h);
+  else if (vizMode === 10) drawStars(w, h);
+  else drawVortex(w, h);
 }
-
 function drawBars(w, h) {
   analyser.getByteFrequencyData(freqData);
   const barCount = 64;
   const step = Math.floor(freqData.length / barCount);
   const barWidth = w / barCount;
   const midY = h / 2;
-
   for (let i = 0; i < barCount; i++) {
     const v = freqData[i * step] / 255;
     const barH = v * (h * 0.42);
@@ -355,14 +319,12 @@ function drawBars(w, h) {
   }
   ctx.shadowBlur = 0;
 }
-
 function drawCircular(w, h) {
   analyser.getByteFrequencyData(freqData);
   const cx = w / 2, cy = h / 2;
   const baseRadius = Math.min(w, h) * 0.16;
   const bars = 90;
   const step = Math.floor(freqData.length / bars);
-
   for (let i = 0; i < bars; i++) {
     const v = freqData[i * step] / 255;
     const angle = (i / bars) * Math.PI * 2;
@@ -372,7 +334,6 @@ function drawCircular(w, h) {
     const x2 = cx + Math.cos(angle) * (baseRadius + len);
     const y2 = cy + Math.sin(angle) * (baseRadius + len);
     const hue = (i / bars) * 360 + (Date.now() / 20 % 360);
-
     ctx.strokeStyle = `hsl(${hue}, 100%, 60%)`;
     ctx.shadowColor = `hsl(${hue}, 100%, 60%)`;
     ctx.shadowBlur = 12;
@@ -384,7 +345,6 @@ function drawCircular(w, h) {
   }
   ctx.shadowBlur = 0;
 }
-
 function drawWave(w, h) {
   analyser.getByteTimeDomainData(timeData);
   const midY = h / 2;
@@ -404,13 +364,11 @@ function drawWave(w, h) {
   ctx.stroke();
   ctx.shadowBlur = 0;
 }
-
 let particles = [];
 function drawParticles(w, h) {
   analyser.getByteFrequencyData(freqData);
   const bass = average(freqData, 0, 24) / 255;
   const cx = w / 2, cy = h / 2;
-
   if (bass > 0.45) {
     for (let i = 0; i < 4; i++) {
       const angle = Math.random() * Math.PI * 2;
@@ -425,7 +383,6 @@ function drawParticles(w, h) {
       });
     }
   }
-
   particles.forEach(p => {
     p.x += p.vx; p.y += p.vy;
     p.life -= 0.012;
@@ -439,7 +396,6 @@ function drawParticles(w, h) {
   particles = particles.filter(p => p.life > 0);
   ctx.shadowBlur = 0;
 }
-
 let rings = [];
 let ringTimer = 0;
 function drawTunnel(w, h) {
@@ -452,7 +408,6 @@ function drawTunnel(w, h) {
   }
   const cx = w / 2, cy = h / 2;
   const maxR = Math.hypot(w, h) / 2;
-
   rings.forEach(ring => {
     ring.r += (4 + mid * 18) * (w / 1000);
     ctx.beginPath();
@@ -466,7 +421,6 @@ function drawTunnel(w, h) {
   rings = rings.filter(r => r.r < maxR);
   ctx.shadowBlur = 0;
 }
-
 function drawKaleido(w, h) {
   analyser.getByteFrequencyData(freqData);
   const cx = w / 2, cy = h / 2;
@@ -474,7 +428,6 @@ function drawKaleido(w, h) {
   const barsPerSeg = 20;
   const step = Math.floor(freqData.length / barsPerSeg);
   const maxLen = Math.min(w, h) * 0.44;
-
   for (let s = 0; s < segments; s++) {
     const segAngle = (s / segments) * Math.PI * 2;
     for (let i = 0; i < barsPerSeg; i++) {
@@ -498,9 +451,199 @@ function drawKaleido(w, h) {
   }
   ctx.shadowBlur = 0;
 }
-
-/* ===================== ТЕКСТЫ ПЕСЕН / КАРАОКЕ ===================== */
-
+function drawSpiral(w, h) {
+  analyser.getByteFrequencyData(freqData);
+  const cx = w / 2, cy = h / 2;
+  const arms = 4;
+  const points = 80;
+  const step = Math.floor(freqData.length / points);
+  const maxR = Math.min(w, h) * 0.48;
+  const rot = Date.now() / 2000;
+  for (let a = 0; a < arms; a++) {
+    ctx.beginPath();
+    for (let i = 0; i < points; i++) {
+      const v = freqData[i * step] / 255;
+      const t = i / points;
+      const angle = rot + a * (Math.PI * 2 / arms) + t * Math.PI * 4;
+      const r = t * maxR * (0.5 + v * 0.9);
+      const x = cx + Math.cos(angle) * r;
+      const y = cy + Math.sin(angle) * r;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    const hue = (a * 90 + Date.now() / 20) % 360;
+    ctx.strokeStyle = `hsl(${hue},100%,60%)`;
+    ctx.shadowColor = `hsl(${hue},100%,60%)`;
+    ctx.shadowBlur = 14;
+    ctx.lineWidth = Math.max(2, w / 450);
+    ctx.stroke();
+  }
+  ctx.shadowBlur = 0;
+}
+function drawGrid(w, h) {
+  analyser.getByteFrequencyData(freqData);
+  const cols = 16;
+  const rows = 10;
+  const cellW = w / cols;
+  const cellH = h / rows;
+  const bass = average(freqData, 0, 20) / 255;
+  const mid = average(freqData, 20, 80) / 255;
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const idx = Math.floor(((x + y * cols) / (cols * rows)) * freqData.length);
+      const v = freqData[idx] / 255;
+      const scale = 0.3 + v * 0.7 + bass * 0.2;
+      const cx = (x + 0.5) * cellW;
+      const cy = (y + 0.5) * cellH;
+      const size = Math.min(cellW, cellH) * 0.35 * scale;
+      const hue = (x * 20 + y * 30 + Date.now() / 25) % 360;
+      ctx.fillStyle = `hsla(${hue},100%,55%,${0.3 + v * 0.7})`;
+      ctx.shadowColor = `hsl(${hue},100%,55%)`;
+      ctx.shadowBlur = 8 + mid * 12;
+      ctx.beginPath();
+      ctx.arc(cx, cy, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.shadowBlur = 0;
+}
+let bolts = [];
+function drawLightning(w, h) {
+  analyser.getByteFrequencyData(freqData);
+  const bass = average(freqData, 0, 18) / 255;
+  const cx = w / 2, cy = h / 2;
+  if (bass > 0.55 && Math.random() < 0.35) {
+    const angle = Math.random() * Math.PI * 2;
+    const len = Math.min(w, h) * (0.25 + bass * 0.4);
+    bolts.push({
+      x: cx, y: cy,
+      angle, len,
+      life: 1,
+      hue: 180 + Math.random() * 120,
+      segs: 6 + Math.floor(Math.random() * 5)
+    });
+  }
+  bolts.forEach(b => {
+    b.life -= 0.04;
+    ctx.beginPath();
+    ctx.moveTo(b.x, b.y);
+    let px = b.x, py = b.y;
+    const segLen = b.len / b.segs;
+    for (let i = 0; i < b.segs; i++) {
+      const jitter = (Math.random() - 0.5) * 40 * (w / 1000);
+      const a = b.angle + (Math.random() - 0.5) * 0.6;
+      px += Math.cos(a) * segLen + jitter;
+      py += Math.sin(a) * segLen + jitter;
+      ctx.lineTo(px, py);
+    }
+    ctx.strokeStyle = `hsla(${b.hue},100%,70%,${Math.max(b.life, 0)})`;
+    ctx.shadowColor = `hsl(${b.hue},100%,70%)`;
+    ctx.shadowBlur = 20;
+    ctx.lineWidth = Math.max(1.5, w / 600) * b.life;
+    ctx.stroke();
+  });
+  bolts = bolts.filter(b => b.life > 0);
+  ctx.shadowBlur = 0;
+}
+let plasmaBlobs = [];
+function drawPlasma(w, h) {
+  analyser.getByteFrequencyData(freqData);
+  const bass = average(freqData, 0, 24) / 255;
+  const mid = average(freqData, 24, 100) / 255;
+  const cx = w / 2, cy = h / 2;
+  if (plasmaBlobs.length < 12) {
+    plasmaBlobs.push({
+      x: cx + (Math.random() - 0.5) * w * 0.6,
+      y: cy + (Math.random() - 0.5) * h * 0.6,
+      vx: (Math.random() - 0.5) * 2,
+      vy: (Math.random() - 0.5) * 2,
+      baseR: 30 + Math.random() * 50,
+      hue: Math.random() * 360,
+      phase: Math.random() * Math.PI * 2
+    });
+  }
+  plasmaBlobs.forEach(b => {
+    b.x += b.vx * (1 + mid * 3);
+    b.y += b.vy * (1 + mid * 3);
+    b.phase += 0.05;
+    if (b.x < 0 || b.x > w) b.vx *= -1;
+    if (b.y < 0 || b.y > h) b.vy *= -1;
+    const r = b.baseR * (0.6 + bass * 0.8 + Math.sin(b.phase) * 0.2) * (w / 1000);
+    const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, r);
+    g.addColorStop(0, `hsla(${b.hue},100%,65%,0.55)`);
+    g.addColorStop(0.5, `hsla(${(b.hue + 40) % 360},100%,50%,0.25)`);
+    g.addColorStop(1, `hsla(${b.hue},100%,40%,0)`);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+let starField = [];
+function drawStars(w, h) {
+  analyser.getByteFrequencyData(freqData);
+  const bass = average(freqData, 0, 20) / 255;
+  const treble = average(freqData, 100, 200) / 255;
+  if (starField.length < 80) {
+    for (let i = 0; i < 80 - starField.length; i++) {
+      starField.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        z: Math.random(),
+        hue: Math.random() * 360
+      });
+    }
+  }
+  const cx = w / 2, cy = h / 2;
+  starField.forEach(s => {
+    s.z -= 0.004 + bass * 0.02;
+    if (s.z <= 0) {
+      s.x = Math.random() * w;
+      s.y = Math.random() * h;
+      s.z = 1;
+      s.hue = Math.random() * 360;
+    }
+    const sx = cx + (s.x - cx) / s.z;
+    const sy = cy + (s.y - cy) / s.z;
+    const size = (1 - s.z) * 4 * (1 + treble) * (w / 1000);
+    ctx.beginPath();
+    ctx.fillStyle = `hsla(${s.hue},100%,70%,${1 - s.z})`;
+    ctx.shadowColor = `hsl(${s.hue},100%,70%)`;
+    ctx.shadowBlur = 8;
+    ctx.arc(sx, sy, Math.max(size, 0.5), 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.shadowBlur = 0;
+}
+function drawVortex(w, h) {
+  analyser.getByteFrequencyData(freqData);
+  const cx = w / 2, cy = h / 2;
+  const layers = 6;
+  const points = 48;
+  const step = Math.floor(freqData.length / points);
+  const maxR = Math.min(w, h) * 0.46;
+  const rot = Date.now() / 1500;
+  for (let L = 0; L < layers; L++) {
+    const layerR = maxR * ((L + 1) / layers);
+    ctx.beginPath();
+    for (let i = 0; i <= points; i++) {
+      const v = freqData[(i % points) * step] / 255;
+      const t = i / points;
+      const angle = rot * (1 + L * 0.3) + t * Math.PI * 2 + L * 0.4;
+      const r = layerR * (0.7 + v * 0.5);
+      const x = cx + Math.cos(angle) * r;
+      const y = cy + Math.sin(angle) * r;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    const hue = (L * 55 + Date.now() / 18) % 360;
+    ctx.strokeStyle = `hsla(${hue},100%,60%,${0.4 + (layers - L) * 0.1})`;
+    ctx.shadowColor = `hsl(${hue},100%,60%)`;
+    ctx.shadowBlur = 10;
+    ctx.lineWidth = Math.max(1.5, w / 500);
+    ctx.stroke();
+  }
+  ctx.shadowBlur = 0;
+}
 function parseLRC(lrc) {
   const timeRe = /\[(\d{2}):(\d{2})(?:[.:](\d{2,3}))?\]/g;
   const result = [];
@@ -518,19 +661,16 @@ function parseLRC(lrc) {
   }
   return result.sort((a, b) => a.time - b.time);
 }
-
 async function loadLyrics(artist, title) {
   lyricsData = null;
   lyricsBox.style.display = 'none';
   lyricsBox.innerHTML = '';
   if (!title) return;
-
   try {
     const url = `/api/lyrics?artist=${encodeURIComponent(artist || '')}&title=${encodeURIComponent(title)}`;
     const res = await fetch(url);
     const data = await res.json();
     if (!data.found) return;
-
     if (data.synced) {
       const lines = parseLRC(data.synced);
       if (!lines.length) return;
@@ -542,17 +682,13 @@ async function loadLyrics(artist, title) {
       lyricsBox.textContent = data.plain;
       lyricsBox.style.display = 'block';
     }
-  } catch (e) {
-    // текста нет — просто ничего не показываем
-  }
+  } catch (e) {}
 }
-
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
 }
-
 player.addEventListener('timeupdate', () => {
   if (!lyricsData || lyricsData.type !== 'synced') return;
   const t = player.currentTime;
