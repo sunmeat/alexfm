@@ -1,0 +1,168 @@
+const player = document.getElementById('player');
+const trackInfo = document.getElementById('trackInfo');
+const statusEl = document.getElementById('status');
+const playBtn = document.getElementById('playBtn');
+const volumeSlider = document.getElementById('volume');
+const lyricsBox = document.getElementById('lyrics');
+const canvas = document.getElementById('viz');
+const hintEl = document.getElementById('hint');
+
+player.volume = parseFloat(volumeSlider.value);
+volumeSlider.addEventListener('input', () => {
+  player.volume = parseFloat(volumeSlider.value);
+});
+
+let currentFile = null;
+let resyncTimer = null;
+let isPlaying = false;
+let lyricsData = null;
+let audioCtx, analyser, source;
+
+async function fetchNowPlaying() {
+  const res = await fetch('/api/now-playing');
+  return res.json();
+}
+
+async function syncToLive(forceRestart = false) {
+  const data = await fetchNowPlaying();
+  const networkDelay = (Date.now() / 1000) - data.serverTime;
+  const targetOffset = data.offset + Math.max(networkDelay, 0);
+  trackInfo.textContent = data.artist ? `${data.artist} — ${data.title}` : data.title;
+  if (data.file !== currentFile || forceRestart) {
+    currentFile = data.file;
+    player.src = '/tracks/' + encodeURIComponent(data.file);
+    player.currentTime = targetOffset;
+    if (isPlaying) player.play().catch(() => {});
+    loadLyrics(data.artist, data.title);
+  } else {
+    const drift = Math.abs(player.currentTime - targetOffset);
+    if (drift > 2) player.currentTime = targetOffset;
+  }
+  clearTimeout(resyncTimer);
+  const nextCheckIn = Math.min(Math.max(data.nextTrackIn, 1), 30);
+  resyncTimer = setTimeout(() => syncToLive(), nextCheckIn * 1000);
+}
+
+syncToLive(true);
+setInterval(() => syncToLive(), 30000);
+
+let lastKnownTime = 0;
+player.addEventListener('timeupdate', () => {
+  lastKnownTime = player.currentTime;
+});
+player.addEventListener('seeking', () => {
+  if (Math.abs(player.currentTime - lastKnownTime) > 1.5) {
+    player.currentTime = lastKnownTime;
+  }
+});
+
+playBtn.addEventListener('click', async (e) => {
+  e.stopPropagation();
+  if (!audioCtx) setupAudioGraph();
+  if (audioCtx.state === 'suspended') await audioCtx.resume();
+  if (!isPlaying) {
+    isPlaying = true;
+    statusEl.textContent = '';
+    await syncToLive(true);
+    player.play();
+    playBtn.textContent = '⏸ Пауза';
+  } else {
+    isPlaying = false;
+    player.pause();
+    playBtn.textContent = '▶ Слушать';
+  }
+});
+
+volumeSlider.addEventListener('click', (e) => e.stopPropagation());
+
+function setupAudioGraph() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  source = audioCtx.createMediaElementSource(player);
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 512;
+  source.connect(analyser);
+  analyser.connect(audioCtx.destination);
+  Visualizer.init(canvas, analyser);
+  Visualizer.start();
+}
+
+window.addEventListener('resize', () => Visualizer.resize());
+
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.controls')) return;
+  if (!Visualizer.analyser) return;
+  const name = Visualizer.nextMode();
+  hintEl.textContent = name;
+  hintEl.style.opacity = '0.8';
+  clearTimeout(hintEl._t);
+  hintEl._t = setTimeout(() => {
+    hintEl.style.opacity = '0.45';
+    hintEl.textContent = 'клик в любом месте страницы — сменить визуализацию';
+  }, 1500);
+});
+
+function parseLRC(lrc) {
+  const timeRe = /\[(\d{2}):(\d{2})(?:[.:](\d{2,3}))?\]/g;
+  const result = [];
+  for (const rawLine of lrc.split('\n')) {
+    const matches = [...rawLine.matchAll(timeRe)];
+    if (!matches.length) continue;
+    const text = rawLine.replace(timeRe, '').trim();
+    if (!text) continue;
+    for (const m of matches) {
+      const min = parseInt(m[1], 10);
+      const sec = parseInt(m[2], 10);
+      const ms = m[3] ? parseInt(m[3].padEnd(3, '0'), 10) : 0;
+      result.push({ time: min * 60 + sec + ms / 1000, text });
+    }
+  }
+  return result.sort((a, b) => a.time - b.time);
+}
+
+async function loadLyrics(artist, title) {
+  lyricsData = null;
+  lyricsBox.style.display = 'none';
+  lyricsBox.innerHTML = '';
+  if (!title) return;
+  try {
+    const url = `/api/lyrics?artist=${encodeURIComponent(artist || '')}&title=${encodeURIComponent(title)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.found) return;
+    if (data.synced) {
+      const lines = parseLRC(data.synced);
+      if (!lines.length) return;
+      lyricsData = { type: 'synced', lines };
+      lyricsBox.innerHTML = lines.map(l => `<div class="line">${escapeHtml(l.text)}</div>`).join('');
+      lyricsBox.style.display = 'block';
+    } else if (data.plain) {
+      lyricsData = { type: 'plain', text: data.plain };
+      lyricsBox.textContent = data.plain;
+      lyricsBox.style.display = 'block';
+    }
+  } catch (e) {}
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+player.addEventListener('timeupdate', () => {
+  if (!lyricsData || lyricsData.type !== 'synced') return;
+  const t = player.currentTime;
+  const lines = lyricsData.lines;
+  let idx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].time <= t) idx = i; else break;
+  }
+  const els = lyricsBox.children;
+  for (let i = 0; i < els.length; i++) {
+    els[i].classList.toggle('active', i === idx);
+  }
+  if (idx >= 0 && els[idx]) {
+    els[idx].scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+});
