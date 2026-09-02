@@ -10,9 +10,12 @@ const Visualizer = {
     'Спираль', 'Сетка', 'Молнии', 'Плазма', 'Звёзды', 'Вихрь',
     'Огонь Winamp', 'Лазерное шоу', 'Матрица', 'Спирограф',
     'Пиковый Эквалайзер', 'Жидкая волна', 'Двойная спираль ДНК',
-    'Стрелочные VU-метры', 'Synthwave Grid 80s', 'Метаболы',
-    'Сверхмассивная Чёрная Нора', 'Киберпанк Воксели', 'Мандельброт-Мандельбро',
-    'Нейросеть', 'Цифровой Глитч'
+    'Стрелочные VU-метры', 'Synthwave Grid 80s',
+    'Сверхмассивная Чёрная Нора', 'Киберпанк Воксели',
+    'Нейросеть', 'Цифровой Глитч',
+    'Пульсирующие Кольца', 'Аврора', 'Соты', 'Кристаллы',
+    'Частотные Линии', 'Ритм-Квадраты', 'Аудио Цветок',
+    'Компас Частот', 'Капли Дождя', 'Волны Ряби'
   ],
   particles: [],
   rings: [],
@@ -34,17 +37,24 @@ const Visualizer = {
   vuLeft: 0,
   vuRight: 0,
   gridOffset: 0,
-  metaballs: [],
   blackHoleParticles: [],
   blackHoleAccretion: [],
   cyberBuildings: [],
   cyberInit: false,
-  fractalTree: [],
-  fractalTimer: 0,
   neuralNodes: [],
   neuralInit: false,
   glitchOffset: 0,
   glitchBlocks: [],
+  
+  pulseRings: [],
+  pulseTimer: 0,
+  crystals: [],
+  crystalsInit: false,
+  rainDrops: [],
+  rippleRings: [],
+  compassBass: 0,
+  compassMid: 0,
+  compassTreble: 0,
 
   init(canvas, analyser) {
     this.canvas = canvas;
@@ -59,12 +69,6 @@ const Visualizer = {
   _initState() {
     this.eqPeaks = new Array(32).fill(0);
     this.fluidPoints = new Array(12).fill(0).map((_, i) => i / 11);
-    this.metaballs = new Array(5).fill(0).map(() => ({
-      x: Math.random(), y: Math.random(),
-      vx: (Math.random() - 0.5) * 0.01,
-      vy: (Math.random() - 0.5) * 0.01,
-      r: 0.1 + Math.random() * 0.15
-    }));
     this.blackHoleAccretion = new Array(60).fill(0).map((_, i) => ({
       angle: Math.random() * Math.PI * 2,
       dist: 0.1 + Math.random() * 0.4,
@@ -72,7 +76,6 @@ const Visualizer = {
       size: 1 + Math.random() * 3
     }));
     this.blackHoleParticles = [];
-    this.fractalTree = [];
     this.glitchBlocks = [];
   },
 
@@ -132,10 +135,14 @@ const Visualizer = {
       () => this.drawMatrixRain(w, h), () => this.drawSpirograph(w, h),
       () => this.drawEqualizerPeaks(w, h), () => this.drawFluidWave(w, h),
       () => this.drawDNA(w, h), () => this.drawVuMeter(w, h),
-      () => this.draw3DGrid(w, h), () => this.drawMetaballs(w, h),
+      () => this.draw3DGrid(w, h),
       () => this.drawBlackHole(w, h), () => this.drawCyberpunkCity(w, h),
-      () => this.drawAudioFractal(w, h), () => this.drawNeuralNetwork(w, h),
-      () => this.drawGlitchCore(w, h)
+      () => this.drawNeuralNetwork(w, h), () => this.drawGlitchCore(w, h),
+      () => this.drawPulseRings(w, h), () => this.drawAurora(w, h),
+      () => this.drawHexPulse(w, h), () => this.drawCrystals(w, h),
+      () => this.drawFreqLines(w, h), () => this.drawRhythmSquares(w, h),
+      () => this.drawAudioFlower(w, h), () => this.drawCompass(w, h),
+      () => this.drawRainDrops(w, h), () => this.drawRipple(w, h)
     ];
     drawers[this.mode]();
   },
@@ -911,58 +918,6 @@ const Visualizer = {
     ctx.shadowBlur = 0;
   },
 
-  drawMetaballs(w, h) {
-    this.analyser.getByteFrequencyData(this.freqData);
-    const ctx = this.ctx;
-    const bass = this.average(this.freqData, 0, 20) / 255;
-    const mid = this.average(this.freqData, 20, 80) / 255;
-    const scale = w / 1000;
-    this.metaballs.forEach((b, i) => {
-      const freqIdx = Math.floor((i / this.metaballs.length) * this.freqData.length);
-      const v = this.freqData[freqIdx] / 255;
-      b.x += b.vx * (1 + v * 2);
-      b.y += b.vy * (1 + v * 2);
-      b.r = (0.1 + v * 0.15) * (1 + bass * 0.5);
-      if (b.x < 0.05 || b.x > 0.95) b.vx *= -1;
-      if (b.y < 0.05 || b.y > 0.95) b.vy *= -1;
-    });
-    const res = 3;
-    const cols = Math.ceil(w / res);
-    const rows = Math.ceil(h / res);
-    const threshold = 1.0;
-    for (let y = 0; y < rows; y++) {
-      for (let x = 0; x < cols; x++) {
-        let sum = 0;
-        const px = (x + 0.5) * res;
-        const py = (y + 0.5) * res;
-        this.metaballs.forEach(b => {
-          const bx = b.x * w;
-          const by = b.y * h;
-          const br = b.r * Math.min(w, h);
-          const dx = px - bx;
-          const dy = py - by;
-          const d2 = dx * dx + dy * dy;
-          if (d2 > 0) sum += (br * br) / d2;
-        });
-        if (sum > threshold) {
-          const intensity = Math.min((sum - threshold) * 2, 1);
-          const hue = (x / cols) * 60 + 160 + mid * 60;
-          ctx.fillStyle = `hsla(${hue},100%,${50 + intensity * 30}%,${0.5 + intensity * 0.5})`;
-          ctx.fillRect(x * res, y * res, res, res);
-        }
-      }
-    }
-    this.metaballs.forEach((b, i) => {
-      const bx = b.x * w;
-      const by = b.y * h;
-      const br = 4 * scale;
-      ctx.beginPath();
-      ctx.fillStyle = `hsla(${200 + i * 40},100%,80%,0.8)`;
-      ctx.arc(bx, by, br, 0, Math.PI * 2);
-      ctx.fill();
-    });
-  },
-
   drawBlackHole(w, h) {
     this.analyser.getByteFrequencyData(this.freqData);
     const ctx = this.ctx;
@@ -1115,46 +1070,6 @@ const Visualizer = {
     }
   },
 
-  drawAudioFractal(w, h) {
-    this.analyser.getByteFrequencyData(this.freqData);
-    const ctx = this.ctx;
-    const bass = this.average(this.freqData, 0, 20) / 255;
-    const treble = this.average(this.freqData, 100, 200) / 255;
-    const cx = w / 2, cy = h * 0.85;
-    const scale = Math.min(w, h) * 0.25;
-    this.fractalTimer += 0.02 + bass * 0.05;
-    const drawBranch = (x, y, angle, len, depth, maxDepth) => {
-      if (depth > maxDepth || len < 2) return;
-      const freqIdx = Math.floor((depth / maxDepth) * this.freqData.length);
-      const v = this.freqData[Math.min(freqIdx, this.freqData.length - 1)] / 255;
-      const endX = x + Math.cos(angle) * len;
-      const endY = y + Math.sin(angle) * len;
-      const hue = (depth * 30 + this.fractalTimer * 30 + v * 60) % 360;
-      const alpha = 1 - depth / maxDepth;
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(endX, endY);
-      ctx.strokeStyle = `hsla(${hue},100%,${50 + v * 30}%,${alpha})`;
-      ctx.shadowColor = `hsl(${hue},100%,60%)`;
-      ctx.shadowBlur = 5 * alpha;
-      ctx.lineWidth = Math.max(0.5, (maxDepth - depth) * (w / 1500));
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-      const branchAngle = 0.4 + v * 0.3 + Math.sin(this.fractalTimer + depth) * 0.2;
-      const shrink = 0.7 + v * 0.1;
-      drawBranch(endX, endY, angle - branchAngle, len * shrink, depth + 1, maxDepth);
-      drawBranch(endX, endY, angle + branchAngle, len * shrink, depth + 1, maxDepth);
-      if (depth === maxDepth && treble > 0.4) {
-        ctx.beginPath();
-        ctx.arc(endX, endY, 3 * (w / 1000) * treble, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${hue},100%,80%,${treble})`;
-        ctx.fill();
-      }
-    };
-    const maxDepth = 8 + Math.floor(bass * 4);
-    drawBranch(cx, cy, -Math.PI / 2, scale, 0, maxDepth);
-  },
-
   drawNeuralNetwork(w, h) {
     this.analyser.getByteFrequencyData(this.freqData);
     const ctx = this.ctx;
@@ -1178,13 +1093,13 @@ const Visualizer = {
       }
       this.neuralInit = true;
     }
-    // Обновление активаций
+ 
     this.neuralNodes.forEach(node => {
       const freqIdx = Math.floor((node.layer / 4) * this.freqData.length * 0.5 + (node.idx / 8) * this.freqData.length * 0.5);
       const v = this.freqData[Math.min(freqIdx, this.freqData.length - 1)] / 255;
       node.activation += (v - node.activation) * 0.1;
     });
-    // Синапсы
+  
     ctx.lineWidth = Math.max(0.5, w / 2000);
     for (let i = 0; i < this.neuralNodes.length; i++) {
       const n1 = this.neuralNodes[i];
@@ -1207,7 +1122,7 @@ const Visualizer = {
         ctx.stroke();
       }
     }
-    // Узлы
+
     this.neuralNodes.forEach(node => {
       const nx = node.x * w;
       const ny = node.y * h;
@@ -1235,32 +1150,32 @@ const Visualizer = {
     const bass = this.average(this.freqData, 0, 20) / 255;
     const kick = bass > 0.6;
     const scale = w / 1000;
-    // Базовая сетка-фон
+
     ctx.fillStyle = '#050505';
     ctx.fillRect(0, 0, w, h);
-    // RGB-разделение (Chromatic Aberration)
+
     const offset = kick ? (Math.random() - 0.5) * 30 * scale : (Math.random() - 0.5) * 5 * scale;
     const cx = w / 2, cy = h / 2;
     const size = Math.min(w, h) * 0.3;
-    // Красный канал
+
     ctx.save();
     ctx.translate(offset, 0);
     ctx.strokeStyle = 'rgba(255,0,0,0.5)';
     ctx.lineWidth = 2;
     ctx.strokeRect(cx - size, cy - size, size * 2, size * 2);
     ctx.restore();
-    // Синий канал
+ 
     ctx.save();
     ctx.translate(-offset, 0);
     ctx.strokeStyle = 'rgba(0,0,255,0.5)';
     ctx.lineWidth = 2;
     ctx.strokeRect(cx - size, cy - size, size * 2, size * 2);
     ctx.restore();
-    // Центральная геометрия
+ 
     ctx.strokeStyle = `rgba(255,255,255,${0.3 + bass * 0.7})`;
     ctx.lineWidth = Math.max(1, w / 300);
     ctx.strokeRect(cx - size, cy - size, size * 2, size * 2);
-    // Пиксельные блоки
+ 
     if (kick || Math.random() < 0.1) {
       for (let i = 0; i < 5 + bass * 10; i++) {
         const bx = Math.random() * w;
@@ -1272,7 +1187,7 @@ const Visualizer = {
         ctx.fillRect(bx, by, bw, bh);
       }
     }
-    // Смещение сканлайнов
+ 
     if (kick) {
       const sy = Math.random() * h;
       const sh = (2 + Math.random() * 10) * scale;
@@ -1281,7 +1196,7 @@ const Visualizer = {
       ctx.fillStyle = `rgba(0,255,255,${0.2 + Math.random() * 0.3})`;
       ctx.fillRect(0, sy + sh * 2, w, sh);
     }
-    // Центральный импульс
+
     if (bass > 0.5) {
       const pulse = bass * size * 0.5;
       ctx.beginPath();
@@ -1290,7 +1205,7 @@ const Visualizer = {
       ctx.lineWidth = Math.max(2, w / 200);
       ctx.stroke();
     }
-    // Диагональные линии глитча
+
     ctx.strokeStyle = `rgba(255,0,80,${0.1 + bass * 0.3})`;
     ctx.lineWidth = 1;
     for (let i = 0; i < 5; i++) {
@@ -1300,10 +1215,314 @@ const Visualizer = {
       ctx.lineTo(w, y + (Math.random() - 0.5) * 100);
       ctx.stroke();
     }
-    // Текстовый артефакт
+
     ctx.fillStyle = `rgba(0,255,0,${0.2 + bass * 0.3})`;
     ctx.font = `${14 * scale}px monospace`;
     ctx.fillText('ERR://AUDIO_OVERFLOW', 20 * scale, h - 20 * scale);
     ctx.fillText(`BASS=${bass.toFixed(2)}`, 20 * scale, h - 40 * scale);
+  },
+
+  drawPulseRings(w, h) {
+    this.analyser.getByteFrequencyData(this.freqData);
+    const ctx = this.ctx;
+    const bass = this.average(this.freqData, 0, 20) / 255;
+    const cx = w / 2, cy = h / 2;
+    const maxR = Math.hypot(w, h) / 2;
+    this.pulseTimer++;
+    if (bass > 0.5 && this.pulseTimer > 8) {
+      this.pulseTimer = 0;
+      this.pulseRings.push({ r: 5, hue: Math.random() * 360, life: 1 });
+    }
+    if (this.pulseRings.length > 15) this.pulseRings.shift();
+    this.pulseRings.forEach(ring => {
+      ring.r += (5 + bass * 12) * (w / 1000);
+      ring.life = Math.max(0, 1 - ring.r / maxR);
+      ctx.beginPath();
+      ctx.strokeStyle = `hsla(${ring.hue},100%,65%,${ring.life})`;
+      ctx.lineWidth = Math.max(1.5, w / 350) * ring.life;
+      ctx.arc(cx, cy, ring.r, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+    this.pulseRings = this.pulseRings.filter(r => r.life > 0);
+  },
+
+  drawAurora(w, h) {
+    this.analyser.getByteFrequencyData(this.freqData);
+    const ctx = this.ctx;
+    const mid = this.average(this.freqData, 10, 100) / 255;
+    const time = Date.now() / 1400;
+    const bands = 4;
+    for (let b = 0; b < bands; b++) {
+      const baseY = h * (0.15 + b * 0.15);
+      const hue = 140 + b * 40 + mid * 40;
+      ctx.beginPath();
+      const points = 24;
+      for (let i = 0; i <= points; i++) {
+        const t = i / points;
+        const x = t * w;
+        const idx = Math.floor(t * this.freqData.length * 0.4);
+        const v = this.freqData[idx] / 255;
+        const y = baseY + Math.sin(t * Math.PI * 3 + time + b) * (40 + v * 60) * (h / 1000);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.lineTo(w, 0);
+      ctx.lineTo(0, 0);
+      ctx.closePath();
+      ctx.fillStyle = `hsla(${hue},90%,55%,${0.08 + mid * 0.1})`;
+      ctx.fill();
+    }
+  },
+
+  drawHexPulse(w, h) {
+    this.analyser.getByteFrequencyData(this.freqData);
+    const ctx = this.ctx;
+    const size = Math.min(w, h) / 14;
+    const hexW = size * 2;
+    const hexH = Math.sqrt(3) * size;
+    const cols = Math.ceil(w / (hexW * 0.75)) + 1;
+    const rows = Math.ceil(h / hexH) + 1;
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const x = col * hexW * 0.75;
+        const y = row * hexH + (col % 2 ? hexH / 2 : 0);
+        const idx = Math.floor(((col + row * cols) % 128) / 128 * this.freqData.length);
+        const v = this.freqData[idx] / 255;
+        if (v < 0.08) continue;
+        const r = size * 0.85 * (0.5 + v * 0.5);
+        const hue = (col * 15 + row * 20 + Date.now() / 30) % 360;
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const a = Math.PI / 3 * i;
+          const px = x + Math.cos(a) * r;
+          const py = y + Math.sin(a) * r;
+          i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = `hsla(${hue},100%,60%,${0.3 + v * 0.7})`;
+        ctx.lineWidth = Math.max(1, w / 700);
+        ctx.stroke();
+      }
+    }
+  },
+
+  drawCrystals(w, h) {
+    this.analyser.getByteFrequencyData(this.freqData);
+    const ctx = this.ctx;
+    if (!this.crystalsInit || this.crystals.length === 0) {
+      this.crystals = [];
+      const count = 12;
+      for (let i = 0; i < count; i++) {
+        this.crystals.push({
+          x: 0.08 + Math.random() * 0.84,
+          y: 0.1 + Math.random() * 0.8,
+          baseSize: 20 + Math.random() * 40,
+          hue: Math.random() * 360,
+          rot: Math.random() * Math.PI
+        });
+      }
+      this.crystalsInit = true;
+    }
+    this.crystals.forEach((c, i) => {
+      const idx = Math.floor((i / this.crystals.length) * this.freqData.length);
+      const v = this.freqData[idx] / 255;
+      const size = c.baseSize * (0.6 + v * 0.9) * (w / 1000);
+      const x = c.x * w, y = c.y * h;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(c.rot + v * 0.3);
+      ctx.beginPath();
+      ctx.moveTo(0, -size);
+      ctx.lineTo(size * 0.6, size * 0.5);
+      ctx.lineTo(-size * 0.6, size * 0.5);
+      ctx.closePath();
+      ctx.fillStyle = `hsla(${c.hue},100%,60%,${0.15 + v * 0.4})`;
+      ctx.strokeStyle = `hsla(${c.hue},100%,70%,${0.5 + v * 0.5})`;
+      ctx.shadowColor = `hsl(${c.hue},100%,60%)`;
+      ctx.shadowBlur = 8 * v;
+      ctx.lineWidth = Math.max(1, w / 600);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    });
+    ctx.shadowBlur = 0;
+  },
+
+  drawFreqLines(w, h) {
+    this.analyser.getByteFrequencyData(this.freqData);
+    const ctx = this.ctx;
+    const lines = 5;
+    const points = 32;
+    for (let L = 0; L < lines; L++) {
+      const bandStart = Math.floor((L / lines) * this.freqData.length * 0.5);
+      const bandEnd = Math.floor(((L + 1) / lines) * this.freqData.length * 0.5);
+      const baseY = h * (0.2 + L * 0.15);
+      const hue = (L * 60 + Date.now() / 40) % 360;
+      ctx.beginPath();
+      for (let i = 0; i <= points; i++) {
+        const t = i / points;
+        const idx = bandStart + Math.floor(t * (bandEnd - bandStart));
+        const v = this.freqData[Math.min(idx, this.freqData.length - 1)] / 255;
+        const x = t * w;
+        const y = baseY - v * h * 0.12;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = `hsla(${hue},100%,60%,0.8)`;
+      ctx.shadowColor = `hsl(${hue},100%,60%)`;
+      ctx.shadowBlur = 6;
+      ctx.lineWidth = Math.max(1.5, w / 600);
+      ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+  },
+
+  drawRhythmSquares(w, h) {
+    this.analyser.getByteFrequencyData(this.freqData);
+    const ctx = this.ctx;
+    const cols = 8, rows = 5;
+    const cellW = w / cols, cellH = h / rows;
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const idx = Math.floor(((x + y * cols) / (cols * rows)) * this.freqData.length);
+        const v = this.freqData[idx] / 255;
+        const pad = cellW * 0.08;
+        const scale = 0.5 + v * 0.5;
+        const wSize = (cellW - pad * 2) * scale;
+        const hSize = (cellH - pad * 2) * scale;
+        const cx = x * cellW + cellW / 2;
+        const cy = y * cellH + cellH / 2;
+        const hue = (x * 30 + y * 40) % 360;
+        ctx.fillStyle = `hsla(${hue},90%,55%,${0.25 + v * 0.6})`;
+        ctx.fillRect(cx - wSize / 2, cy - hSize / 2, wSize, hSize);
+      }
+    }
+  },
+
+  drawAudioFlower(w, h) {
+    this.analyser.getByteFrequencyData(this.freqData);
+    const ctx = this.ctx;
+    const cx = w / 2, cy = h / 2;
+    const petals = 10;
+    const baseR = Math.min(w, h) * 0.05;
+    const rot = Date.now() / 3000;
+    for (let i = 0; i < petals; i++) {
+      const idx = Math.floor((i / petals) * this.freqData.length * 0.6);
+      const v = this.freqData[idx] / 255;
+      const angle = rot + (i / petals) * Math.PI * 2;
+      const len = baseR * (2 + v * 6);
+      const px = cx + Math.cos(angle) * len * 0.5;
+      const py = cy + Math.sin(angle) * len * 0.5;
+      const hue = (i / petals) * 360 + Date.now() / 25;
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(angle);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, len * 0.5, baseR * (0.6 + v * 0.5), 0, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${hue},100%,60%,${0.35 + v * 0.5})`;
+      ctx.shadowColor = `hsl(${hue},100%,60%)`;
+      ctx.shadowBlur = 8;
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.beginPath();
+    ctx.arc(cx, cy, baseR * 0.8, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = '#fff';
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  },
+
+  drawCompass(w, h) {
+    this.analyser.getByteFrequencyData(this.freqData);
+    const ctx = this.ctx;
+    const bass = this.average(this.freqData, 0, 20) / 255;
+    const mid = this.average(this.freqData, 20, 100) / 255;
+    const treble = this.average(this.freqData, 100, 220) / 255;
+    this.compassBass += (bass - this.compassBass) * 0.2;
+    this.compassMid += (mid - this.compassMid) * 0.2;
+    this.compassTreble += (treble - this.compassTreble) * 0.2;
+    const cx = w / 2, cy = h / 2;
+    const radius = Math.min(w, h) * 0.35;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = Math.max(1, w / 700);
+    ctx.stroke();
+    const arms = [
+      { val: this.compassBass, hue: 0, rot: 0 },
+      { val: this.compassMid, hue: 130, rot: Math.PI * 2 / 3 },
+      { val: this.compassTreble, hue: 220, rot: Math.PI * 4 / 3 }
+    ];
+    const t = Date.now() / 4000;
+    arms.forEach(arm => {
+      const angle = t + arm.rot;
+      const len = radius * (0.2 + arm.val * 0.8);
+      const x2 = cx + Math.cos(angle) * len;
+      const y2 = cy + Math.sin(angle) * len;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(x2, y2);
+      ctx.strokeStyle = `hsla(${arm.hue},100%,60%,0.9)`;
+      ctx.shadowColor = `hsl(${arm.hue},100%,60%)`;
+      ctx.shadowBlur = 10;
+      ctx.lineWidth = Math.max(2, w / 250);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x2, y2, Math.max(3, w / 200), 0, Math.PI * 2);
+      ctx.fillStyle = `hsl(${arm.hue},100%,70%)`;
+      ctx.fill();
+    });
+    ctx.shadowBlur = 0;
+  },
+
+  drawRainDrops(w, h) {
+    this.analyser.getByteFrequencyData(this.freqData);
+    const ctx = this.ctx;
+    const treble = this.average(this.freqData, 100, 220) / 255;
+    if (this.rainDrops.length < 60 && Math.random() < 0.3 + treble * 0.6) {
+      this.rainDrops.push({
+        x: Math.random() * w,
+        y: -10,
+        speed: (4 + Math.random() * 6) * (h / 1000),
+        hue: 190 + Math.random() * 60,
+        size: 2 + Math.random() * 3
+      });
+    }
+    this.rainDrops.forEach(d => {
+      d.y += d.speed * (1 + treble * 2);
+      ctx.beginPath();
+      ctx.fillStyle = `hsla(${d.hue},100%,70%,0.8)`;
+      ctx.shadowColor = `hsl(${d.hue},100%,70%)`;
+      ctx.shadowBlur = 6;
+      ctx.arc(d.x, d.y, d.size * (w / 1000), 0, Math.PI * 2);
+      ctx.fill();
+    });
+    this.rainDrops = this.rainDrops.filter(d => d.y < h + 10);
+    ctx.shadowBlur = 0;
+  },
+
+  drawRipple(w, h) {
+    this.analyser.getByteFrequencyData(this.freqData);
+    const ctx = this.ctx;
+    const bass = this.average(this.freqData, 0, 24) / 255;
+    if (bass > 0.5 && this.rippleRings.length < 6 && Math.random() < 0.5) {
+      this.rippleRings.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        r: 4,
+        hue: Math.random() * 360,
+        life: 1
+      });
+    }
+    this.rippleRings.forEach(r => {
+      r.r += (3 + bass * 8) * (w / 1000);
+      r.life -= 0.02;
+      ctx.beginPath();
+      ctx.strokeStyle = `hsla(${r.hue},100%,65%,${Math.max(r.life, 0)})`;
+      ctx.lineWidth = Math.max(1.5, w / 400) * Math.max(r.life, 0);
+      ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+    this.rippleRings = this.rippleRings.filter(r => r.life > 0);
   }
 };
